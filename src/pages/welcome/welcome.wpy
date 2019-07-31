@@ -1,0 +1,71 @@
+<template>
+    <view class="welcome">
+      <div class="bg">
+        <image mode="aspectFit" class="bg" src="../../static/img/bg.jpg"></image>
+      </div>
+      <view class="question">
+        <van-field
+          value="{{ value }}"
+          placeholder="今日谁最美"
+          border="{{ false }}"
+          bind:change="onChange"
+        />
+        <van-button @tap="answer" class="answer">芝麻开门</van-button>
+      </view>
+      <van-toast id="van-toast" />
+    </view>
+</template>
+<script>
+  import wepy from 'wepy'
+  import Toast from '../../components/van/toast/toast'
+
+  export default class welcome extends wepy.page {
+    config = {
+      navigationBarTitleText: 'welcome',
+      usingComponents: {
+        'van-field': '../../components/van/field/index',
+        'van-button': '../../components/van/button/index',
+        'van-toast': '../../components/van/toast/index'
+      }
+    }
+    data = {
+      value: ''
+    }
+    methods = {
+      onChange (event) {
+        this.value = event.detail
+      },
+      answer () {
+        if (this.value === '易德林') {
+          Toast.success('没错，答对啦')
+          setTimeout(() => {
+            wx.navigateTo({
+              url: '../game/game'
+            })
+          }, 1500)
+        } else {
+          Toast.fail('不对，再想想')
+        }
+      }
+    }
+
+    onLoad() {
+    }
+  }
+</script>
+
+<style lang="less">
+  .welcome{
+    .bg{
+      position: fixed;
+      width: 100%;
+      display: none;
+    }
+    .question{
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+</style>

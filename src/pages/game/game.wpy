@@ -1,0 +1,367 @@
+<template>
+    <view class="game">
+      <view class="checkerboard">
+        <canvas bindtouchmove="move" bindtouchstart="start" bindtouchend="end" canvas-id="checkerboard"></canvas>
+      </view>
+      <view class="tip">{{ mine ? '黑' : '白' }}棋落子</view>
+      <view class="score">比分 黑 {{ blackScore }} ：白 {{ whiteScore }}</view>
+      <view class="btns">
+        <view class="restore" bindtap="restore" type="default">
+          悔棋
+        </view>
+        <view class="restart" bindtap="restart" type="default">重来</view>
+      </view>
+      <van-dialog id="van-dialog" />
+    </view>
+</template>
+<script>
+  import wepy from 'wepy'
+  import Dialog from '../../components/van/dialog/dialog'
+
+  export default class game extends wepy.page {
+    config = {
+      navigationBarTitleText: '五子棋',
+      usingComponents: {
+        'van-field': '../../components/van/field/index',
+        'van-button': '../../components/van/button/index',
+        'van-dialog': '../../components/van/dialog/index',
+        'van-icon': '../../components/van/icon/index'
+      }
+    }
+    data = {
+      activePoint: {
+        x: '',
+        y: ''
+      },
+      index: {
+        x: 0,
+        y: 0
+      },
+      blackScore: 0,
+      whiteScore: 0,
+      blackFirst: true, // 默认黑棋先手
+      gameOver: false, // 判断游戏是否已经结束
+      mine: true, // 判断黑棋还是白棋落子，true为黑子
+      boardPoint: [] // 存放棋盘交叉轴坐标对象，obj属性：x,y横纵坐标，useFlag是否被占用
+    }
+    methods = {
+      start(e) {
+        this.activePoint = {
+          x: e.touches[0].x,
+          y: e.touches[0].y
+        }
+        const finalPoint = this.getExactPoint(this.activePoint)
+        if (this.boardPoint[this.index.x][this.index.y].useFlag === '0' && !this.gameOver) {
+          this.drawCle({
+            color: this.mine ? '#000000' : '#ffffff',
+            x: finalPoint.x,
+            y: finalPoint.y
+          })
+          this.isWin()
+        }
+      },
+      move() {
+
+      },
+      end() {
+
+      }
+    }
+    drawLine() { // 绘制棋盘
+      this.ctxWidth = wx.getSystemInfoSync().windowWidth * 0.9
+      this.cellWidth = (this.ctxWidth / 14).toFixed(2)
+      for (let i = 0; i < 15; i++) { // 绘制横向线条
+        this.ctx.setStrokeStyle('#bfa077')
+        this.ctx.moveTo((this.cellWidth / 2).toFixed(2), (this.cellWidth * i + this.cellWidth / 2).toFixed(2))
+        this.ctx.lineTo((this.ctxWidth - this.cellWidth / 2).toFixed(2), (this.cellWidth * i + this.cellWidth / 2).toFixed(2))
+      }
+      for (let i = 0; i < 15; i++) { // 绘制纵向线条
+        this.ctx.setStrokeStyle('#bfa077')
+        this.ctx.moveTo((this.cellWidth * i + this.cellWidth / 2).toFixed(2), (this.cellWidth / 2).toFixed(2))
+        this.ctx.lineTo((this.cellWidth * i + this.cellWidth / 2).toFixed(2), (this.ctxWidth - this.cellWidth / 2).toFixed(2))
+      }
+      for (let i = 0; i < 15; i++) {
+        this.boardPoint.push([])
+        for (let j = 0; j < 15; j++) {
+          let point = {
+            x: (this.cellWidth * j + this.cellWidth / 2).toFixed(2),
+            y: (this.cellWidth * i + this.cellWidth / 2).toFixed(2),
+            useFlag: '0'
+          }
+          this.boardPoint[i].push(point)
+        }
+      }
+      this.ctx.stroke()
+      this.ctx.draw()
+    }
+    restore() { // 悔棋
+      if (this.boardPoint[this.index.x][this.index.y].useFlag === '0' || this.gameOver) {
+        return
+      }
+      this.ctx.draw()
+      this.drawLine()
+      for (let i = 0; i < this.boardPoint.length; i++) {
+        for (let j = 0; j < this.boardPoint[i].length; j++) {
+          if (this.boardPoint[this.index.x][this.index.y].useFlag !== '0') {
+            this.mine = !this.mine
+          }
+          this.boardPoint[this.index.x][this.index.y].useFlag = '0'
+          if (this.boardPoint[i][j].useFlag !== '0') {
+            this.drawCle({
+              color: this.boardPoint[i][j].useFlag === '1' ? '#000000' : '#ffffff',
+              x: this.boardPoint[i][j].x,
+              y: this.boardPoint[i][j].y
+            })
+          }
+        }
+      }
+    }
+    drawCle(opts) { // 绘制棋子
+      this.ctx.save()
+      this.ctx.setFillStyle(opts.color)
+      this.ctx.beginPath()
+      this.ctx.arc(opts.x, opts.y, this.cellWidth / 3, 0, Math.PI * 2, true)
+      this.ctx.closePath()
+      this.ctx.fill()
+      this.ctx.draw(true)
+      this.boardPoint[this.index.x][this.index.y].useFlag = this.mine ? '1' : '2'
+      this.mine = !this.mine
+    }
+    getExactPoint(point) { // 换算精确坐标，将棋子落点于棋盘交叉轴
+      let factPoint = {}
+      let index = {
+        x: 0,
+        y: 0
+      }
+      for (let i = 0; i < 15; i++) { // 寻找离落子位置最近的x轴
+        if ((point.x - this.boardPoint[0][i].x) <= (this.cellWidth / 2)) {
+          index.x = i
+          break
+        }
+      }
+      for (let j = 0; j < 15; j++) {
+        if ((point.y - this.boardPoint[j][index.x].y) <= (this.cellWidth / 2)) {
+          factPoint = {
+            x: this.boardPoint[j][index.x].x,
+            y: this.boardPoint[j][index.x].y
+          }
+          this.index = {
+            x: j,
+            y: index.x
+          }
+          break
+        }
+      }
+      return factPoint
+    }
+    isWin() { // 判断是否胜利
+      let { x, y } = this.index
+      let countX = 1
+      let countY = 1
+      let countO = 1
+      let countN = 1 // 分别代表横纵直线（阳线）和斜线（阴线）的同一颜色棋子数
+      for (let i = y; i < 14; i++) { // 横线向右统计同一颜色棋子数
+        if (this.boardPoint[x][i + 1].useFlag === (this.mine ? '2' : '1')) {
+          countX += 1
+        } else {
+          break
+        }
+      }
+      for (let i = y; i > 0; i--) { // 横线向左统计同一颜色棋子数
+        if (this.boardPoint[x][i - 1].useFlag === (this.mine ? '2' : '1')) {
+          countX += 1
+        } else {
+          break
+        }
+      }
+      for (let i = x; i < 14; i++) { // 纵线向下统计同一颜色棋子数
+        if (this.boardPoint[i + 1][y].useFlag === (this.mine ? '2' : '1')) {
+          countY += 1
+        } else {
+          break
+        }
+      }
+      for (let i = x; i > 0; i--) { // 纵线向上统计同一颜色棋子数
+        if (this.boardPoint[i - 1][y].useFlag === (this.mine ? '2' : '1')) {
+          countY += 1
+        } else {
+          break
+        }
+      }
+      for (let i = 0; i < 14; i++) { // 斜线向右下统计同一颜色棋子数
+        if ((x + i < 14) && (y + i < 14)) {
+          if (this.boardPoint[x + i + 1][y + i + 1].useFlag === (this.mine ? '2' : '1')) {
+            countN += 1
+          } else {
+            break
+          }
+        } else {
+          break
+        }
+      }
+      for (let i = 0; i < 15; i++) { // 斜线向右上统计同一颜色棋子数
+        if ((y + i < 14) && (x - i > 0)) {
+          if (this.boardPoint[x - i - 1][y + i + 1].useFlag === (this.mine ? '2' : '1')) {
+            countO += 1
+          } else {
+            break
+          }
+        } else {
+          break
+        }
+      }
+      for (let i = 0; i < 15; i++) { // 斜线向左下统计同一颜色棋子数
+        if ((x + i < 14) && (y - i > 0)) {
+          if (this.boardPoint[x + i + 1][y - i - 1].useFlag === (this.mine ? '2' : '1')) {
+            countO += 1
+          } else {
+            break
+          }
+        } else {
+          break
+        }
+      }
+      for (let i = 0; i < 15; i++) { // 斜线向左上统计同一颜色棋子数
+        if ((x - i > 0) && (y - i > 0)) {
+          if (this.boardPoint[x - i - 1][y - i - 1].useFlag === (this.mine ? '2' : '1')) {
+            countN += 1
+          } else {
+            break
+          }
+        } else {
+          break
+        }
+      }
+      if (((countX > 4) || (countY > 4) || (countO > 4) || (countN > 4)) && !this.gameOver) {
+        this.gameOver = true
+        this.blackFirst = !this.blackFirst
+        if (this.mine) { // 统计得分
+          this.whiteScore += 1
+        } else {
+          this.blackScore += 1
+        }
+        const _this = this
+        wx.showModal({
+          title: '提示',
+          confirmText: '再来一局',
+          cancelText: '复盘',
+          content: (this.mine ? ('白' + '棋胜利') : ('黑' + '棋胜利')) + '，交换先后手',
+          success(res) {
+            if (res.confirm) {
+              _this.resetBoard()
+            } else if (res.cancel) {
+              // cancel
+            }
+          }
+        })
+      }
+    }
+
+    restart() {
+      const _this = this
+      wx.showModal({
+        title: '提示',
+        content: '确定重新开始游戏吗',
+        success(res) {
+          if (res.confirm) {
+            _this.mine = _this.blackFirst
+            _this.$apply()
+            _this.resetBoard()
+          } else if (res.cancel) {
+            // cancel
+          }
+        }
+      })
+    }
+
+    resetBoard() { // 重置棋盘和相关数据
+      this.boardPoint = []
+      this.activePoint = {
+        x: '',
+        y: ''
+      }
+      this.index = {
+        x: 0,
+        y: 0
+      }
+      this.onReady()
+    }
+
+    onLoad() {
+
+    }
+
+    onReady(e) {
+      // 使用 wx.createContext 获取绘图上下文 context
+      this.gameOver = false
+      this.ctx = wx.createCanvasContext('checkerboard')
+      this.drawLine()
+    }
+  }
+</script>
+
+<style lang="less">
+  .game{
+    .point{
+      position: absolute;
+    }
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    .tip, .score{
+      position: absolute;
+      bottom: 80px;
+      right: 10px;
+      font-size: 12px;
+      color: #bfa077;
+    }
+    .score{
+      left: 10px;
+      font-size: 12px;
+    }
+    .point-tip{
+      position: absolute;
+      top: -100px;
+      left: -100px;
+      color: #ffffff;
+    }
+    .btns{
+      position: absolute;
+      bottom: 20px;
+      right: 0;
+      .restore, .restart{
+        margin-right: 10px;
+        display: inline-block;
+        width: 100rpx;
+        height: 100rpx;
+        color: #bfa077;
+        border-radius: 50%;
+        line-height: 100rpx;
+        text-align: center;
+        font-size: 28rpx;
+        background-color: #f8e8b7;
+        .van-icon{
+          display: inline-block;
+          width: 100%;
+          text-align: center;
+        }
+        .text{
+          font-size: 12px;
+        }
+      }
+    }
+    .checkerboard{
+      width: 90vw;
+      height: 90vw;
+      background-color: #f8e8b7;
+      border-radius: 4px;
+      margin-top: -50px;
+      canvas{
+        width: 100%;
+        height: 100%;
+      }
+    }
+  }
+</style>

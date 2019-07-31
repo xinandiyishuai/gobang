@@ -1,0 +1,13 @@
+{
+  "description": "Fairy's exclusive game",
+  "setting": {
+    "urlCheck": true,
+    "es6": false,
+    "postcss": false,
+    "minified": false
+  },
+  "compileType": "miniprogram",
+  "appid": "wx389bc47fc29f9270",
+  "projectname": "gobang",
+  "miniprogramRoot": "./dist"
+}
